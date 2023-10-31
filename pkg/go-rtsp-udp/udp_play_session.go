@@ -93,7 +93,6 @@ func (cli *RtspUdpPlaySession) HandleSetup(client *rtsp.RtspClient, res rtsp.Rts
 					pkg.Logger.Error(fmt.Sprintf("[Read RTP Data], Track Input error: %s", err.Error()))
 					break
 				}
-				cli.Destory()
 			}
 		}
 	}()
@@ -119,9 +118,7 @@ func (cli *RtspUdpPlaySession) HandleSetup(client *rtsp.RtspClient, res rtsp.Rts
 					break
 				}
 			}
-
 		}
-		cli.Destory()
 	}()
 
 	cli.timeout = timeout
