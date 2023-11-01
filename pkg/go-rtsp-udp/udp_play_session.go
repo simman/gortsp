@@ -6,6 +6,7 @@ import (
 	"gortsp/pkg"
 	"gortsp/pkg/go-rtsp"
 	"gortsp/pkg/go-rtsp/sdp"
+	"gortsp/utils"
 	"net"
 	"os"
 	"strings"
@@ -37,7 +38,12 @@ type RtspUdpPlaySession struct {
 }
 
 func NewRtspUdpPlaySession(c net.Conn) *RtspUdpPlaySession {
-	return &RtspUdpPlaySession{udpport: 5004, die: make(chan struct{}), c: c, sesss: make(map[string]*UdpPairSession)}
+	udpPort, err := utils.GetFreePort("udp")
+	if err != nil {
+		pkg.Logger.Error("Get free udp port", "err", err.Error())
+		panic(err)
+	}
+	return &RtspUdpPlaySession{udpport: uint16(udpPort), die: make(chan struct{}), c: c, sesss: make(map[string]*UdpPairSession)}
 }
 
 func (cli *RtspUdpPlaySession) WithCallback(onRtpBufCallback OnRtpBufCallback, onSampleCallback OnSampleCallback, onCloseCallback OnCloseCallback) *RtspUdpPlaySession {
@@ -261,11 +267,11 @@ func (cli *RtspUdpPlaySession) HandleRequest(client *rtsp.RtspClient, req rtsp.R
 }
 
 func (cli *RtspUdpPlaySession) Destory() {
+	pkg.Logger.Info("[Destory]")
 	cli.once.Do(func() {
 		if cli.onCloseCallback != nil {
 			cli.onCloseCallback()
 		}
-		pkg.Logger.Info("[Destory]")
 		if cli.videoFile != nil {
 			_ = cli.videoFile.Close()
 		}
@@ -274,6 +280,18 @@ func (cli *RtspUdpPlaySession) Destory() {
 		}
 		if cli.tsFile != nil {
 			_ = cli.tsFile.Close()
+		}
+
+		// close all udp conn
+		for _, v := range cli.sesss {
+			if v != nil {
+				if v.rtpSess != nil {
+					_ = v.rtpSess.Close()
+				}
+				if v.rtcpSess != nil {
+					_ = v.rtcpSess.Close()
+				}
+			}
 		}
 		_ = cli.c.Close()
 		close(cli.die)

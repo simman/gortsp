@@ -33,17 +33,9 @@
     let log = msg => {
         document.getElementById('logs').innerHTML += `<p class="text-muted">${msg}</p>`
     }
-    log('status')
-    log('connected')
-    const suuid = "10086"
+    const suuid = Date.now()
     let localSessionDescription = undefined;
-    let pc = new RTCPeerConnection({
-        iceServers: [
-            {
-                urls: 'stun:stun.l.google.com:19302'
-            }
-        ]
-    });
+    let pc = new RTCPeerConnection();
     pc.ontrack = function (event) {
         var el = document.createElement(event.track.kind)
         el.srcObject = event.streams[0]

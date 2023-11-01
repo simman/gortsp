@@ -26,11 +26,19 @@ func makeUdpPairSession(localRtpPort, localRtcpPort uint16, remoteAddr string, r
 	//rtpUdpsess, _ := net.DialUDP("udp4", &srcAddr, &dstAddr)
 	//rtcpUdpsess, _ := net.DialUDP("udp4", &srcAddr2, &dstAddr2)
 
-	rtpUdpsess, _ := net.ListenUDP("udp4", &srcAddr)
-	rtcpUdpsess, _ := net.ListenUDP("udp4", &srcAddr2)
+	rtpUdpSession, err := net.ListenUDP("udp4", &srcAddr)
+	if err != nil {
+		pkg.Logger.Error("create rtp conn err", err.Error())
+		panic(err)
+	}
+	rtcpUdpSession, err := net.ListenUDP("udp4", &srcAddr2)
+	if err != nil {
+		pkg.Logger.Error("create rtcp conn err", err.Error())
+		panic(err)
+	}
 
 	return &UdpPairSession{
-		rtpSess:  rtpUdpsess,
-		rtcpSess: rtcpUdpsess,
+		rtpSess:  rtpUdpSession,
+		rtcpSess: rtcpUdpSession,
 	}
 }

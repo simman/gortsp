@@ -3,6 +3,8 @@ package utils
 import (
 	"encoding/hex"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 )
 
@@ -30,4 +32,40 @@ func Bytes2HexString(data []byte) string {
 		}
 	}
 	return tmp
+}
+
+// GetFreePort Get an available port.
+// [network] tcp/udp
+func GetFreePort(network string) (port int, err error) {
+	switch network {
+	case "tcp":
+		if a, err := net.ResolveTCPAddr("tcp", "localhost:0"); err == nil {
+			var l *net.TCPListener
+			if l, err = net.ListenTCP("tcp", a); err == nil {
+				defer func(l *net.TCPListener) {
+					_ = l.Close()
+				}(l)
+				return l.Addr().(*net.TCPAddr).Port, nil
+			}
+		}
+	case "udp":
+		if a, err := net.ResolveUDPAddr("udp", "localhost:0"); err == nil {
+			var l *net.UDPConn
+			if l, err = net.ListenUDP("udp", a); err == nil {
+				defer func(l *net.UDPConn) {
+					_ = l.Close()
+				}(l)
+				_, port, err := net.SplitHostPort(l.LocalAddr().String())
+				if err != nil {
+					return 0, err
+				}
+				portInt, _ := strconv.Atoi(port)
+				return portInt, nil
+			}
+		}
+	default:
+		return 0, net.UnknownNetworkError(network)
+	}
+
+	return
 }

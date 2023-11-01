@@ -17,13 +17,7 @@ type WebRTCServer struct {
 
 func NewWebRTCServer() *WebRTCServer {
 	// Create a new RTCPeerConnection
-	peerConnection, _ := webrtc.NewPeerConnection(webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{
-			{
-				URLs: []string{"stun:stun.l.google.com:19302"},
-			},
-		},
-	})
+	peerConnection, _ := webrtc.NewPeerConnection(webrtc.Configuration{})
 	return &WebRTCServer{peer: peerConnection, sessionDesc: webrtc.SessionDescription{}}
 }
 
