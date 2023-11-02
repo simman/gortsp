@@ -159,7 +159,7 @@ func (cli *RtspUdpPlaySession) HandleDescribe(client *rtsp.RtspClient, res rtsp.
 
 		pkg.Logger.Info(fmt.Sprintf("Got [%s] Track", k))
 		//transport := rtsp.NewRtspTransport(rtsp.WithEnableUdp(), rtsp.WithClientUdpPort(cli.udpport, cli.udpport+1))
-		transport := rtsp.NewRtspTransport(rtsp.WithEnableUdp(), rtsp.WithClientUdpPort(cli.udpport, cli.udpport+1), rtsp.WithMode(rtsp.MODE_PLAY))
+		transport := rtsp.NewRtspTransport(rtsp.WithEnableUdp(), rtsp.WithClientUdpPort(cli.udpport, cli.udpport+1), rtsp.WithMode("")) // rtsp.MODE_PLAY
 		t.SetTransport(transport)
 		t.OpenTrack()
 		cli.udpport += 2
