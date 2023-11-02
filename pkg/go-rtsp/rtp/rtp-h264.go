@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/pion/rtp"
 	"gortsp/pkg/go-codec"
 )
 
@@ -23,6 +22,9 @@ import (
 // 29     FU-B          no               no              yes
 // 30-31  reserved      ig               ig               ig
 //
+
+var StartCode = []uint8{0, 0, 0, 1}
+var StartCodeN = []uint8{0, 0, 1}
 
 type H264Packer struct {
 	CommPacker
@@ -252,13 +254,17 @@ func (unpacker *H264UnPacker) UnPack(pkt []byte) error {
 		return err
 	}
 
-	pionRtpPacket := &rtp.Packet{}
-	if err := pionRtpPacket.Unmarshal(pkt); err != nil {
-		return err
-	}
-
 	if len(pkg.Payload) == 0 {
 		return nil
+	}
+
+	// 检查pkg是否是 00 00 00 01 / 00 00 01 开头, 如果是, 则去除
+	// 128 224 0 0 68
+
+	if bytes.Compare(StartCode, pkg.Payload[:4]) == 0 {
+		pkg.Payload = pkg.Payload[4:]
+	} else if bytes.Compare(StartCodeN, pkg.Payload[:3]) == 0 {
+		pkg.Payload = pkg.Payload[3:]
 	}
 
 	if unpacker.onRtp != nil {
