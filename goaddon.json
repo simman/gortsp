@@ -1,0 +1,37 @@
+{
+  "name": "gortsp",
+  "sources": [
+    "goaddon.go"
+  ],
+  "output": "./nodejs_addon_dist/",
+  "exports": [
+    {
+      "name": "HelloSync",
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ],
+      "returntype": "string",
+      "jscallname": "helloSync",
+      "jscallmode": "sync"
+    },
+    {
+      "name": "HelloAsync",
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "cbs",
+          "type": "callback"
+        }
+      ],
+      "returntype": "string",
+      "jscallname": "helloAsync",
+      "jscallmode": "async"
+    }
+  ]
+}
