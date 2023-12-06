@@ -1,0 +1,14 @@
+prefix=/Users/longzy/Downloads/FFmpeg-n4.4.2/build_out
+exec_prefix=${prefix}
+libdir=/Users/longzy/Downloads/FFmpeg-n4.4.2/build_out/lib
+includedir=/Users/longzy/Downloads/FFmpeg-n4.4.2/build_out/include
+
+Name: libavutil
+Description: FFmpeg utility library
+Version: 56.70.100
+Requires: 
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lavutil -pthread -lm -framework VideoToolbox -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework CoreServices
+Libs.private: 
+Cflags: -I${includedir}

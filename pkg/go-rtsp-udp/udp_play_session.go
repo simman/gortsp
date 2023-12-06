@@ -187,8 +187,11 @@ func (cli *RtspUdpPlaySession) HandleDescribe(client *rtsp.RtspClient, res rtsp.
 				//cli.audioFile, _ = os.OpenFile("test_data/audio.aac", os.O_CREATE|os.O_RDWR, 0666)
 			}
 			t.OnSample(func(sample rtsp.RtspSample) {
-				pkg.Logger.Debug("【5】[OnSample] Got AAC", "frameLen", len(sample.Sample), "timestamp", sample.Timestamp)
+				//pkg.Logger.Debug("【5】[OnSample] Got AAC", "frameLen", len(sample.Sample), "timestamp", sample.Timestamp)
 				//cli.audioFile.Write(sample.Sample)
+				//if cli.sampleCallback != nil {
+				//	cli.sampleCallback(sample)
+				//}
 			})
 		} else if t.Codec.Cid == rtsp.RTSP_CODEC_TS {
 			if cli.tsFile == nil {
@@ -197,6 +200,21 @@ func (cli *RtspUdpPlaySession) HandleDescribe(client *rtsp.RtspClient, res rtsp.
 			t.OnSample(func(sample rtsp.RtspSample) {
 				pkg.Logger.Debug("【5】[OnSample] Got TS", "frameLen", len(sample.Sample), "timestamp", sample.Timestamp)
 				//cli.tsFile.Write(sample.Sample)
+			})
+		} else if t.Codec.Cid == rtsp.RTSP_CODEC_H265 {
+			if cli.videoFile == nil {
+				//cli.videoFile, _ = os.OpenFile("video_full.h265", os.O_CREATE|os.O_RDWR, 0666)
+				//cli.videoFile.Write(sps)
+				//cli.videoFile.Write(pps)
+			}
+
+			t.OnSample(func(sample rtsp.RtspSample) {
+				//slog.Debug("【5】[OnSample] Got H265", "frameLen", len(sample.Sample), "timestamp", sample.Timestamp)
+				//cli.videoFile.Write(sample.Sample)
+
+				if cli.sampleCallback != nil {
+					//cli.sampleCallback(sample)
+				}
 			})
 		}
 	}

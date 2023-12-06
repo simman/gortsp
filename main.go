@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	gin_server "gortsp/pkg/gin-server"
+	"gortsp/ffgo"
 )
 
 var Version = "1.0.0-2310311419"
@@ -17,5 +17,7 @@ func main() {
 #                                                                   #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 `, Version, GitSource))
-	gin_server.RunHttpServer()
+	//gin_server.RunHttpServer()
+
+	fmt.Println(ffgo.X265_to_H264())
 }

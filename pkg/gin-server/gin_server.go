@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
 	"github.com/pion/webrtc/v4/pkg/media/h264reader"
@@ -100,18 +101,42 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 		webRTCServer := config.Config.WebrtcSerGet(sUUID)
 		if webRTCServer != nil && webRTCServer.IsStarted && webRTCServer.TrackLocalStaticSample != nil {
 			r := bytes.NewReader(sample.Sample)
-			h264Reader, _ := h264reader.NewReader(r)
-			nal, _ := h264Reader.NextNAL()
-			mediaSample := media.Sample{
-				Data: nal.Data,
-				//Timestamp: time.Now(),
-				Duration: time.Millisecond * 25,
-				//PacketTimestamp:    nil,
-				//PrevDroppedPackets: 0,
-				//Metadata:           nil,
-			}
-			if err := webRTCServer.TrackLocalStaticSample.WriteSample(mediaSample); err != nil {
-				pkg.Logger.Error("WriteSample", "err", err.Error())
+			if sample.Cid == rtsp.RTSP_CODEC_H264 {
+				h264Reader, _ := h264reader.NewReader(r)
+				nal, _ := h264Reader.NextNAL()
+				mediaSample := media.Sample{
+					Data: nal.Data,
+					//Timestamp: time.Now(),
+					Duration: time.Millisecond * 25,
+					//PacketTimestamp:    nil,
+					//PrevDroppedPackets: 0,
+					//Metadata:           nil,
+				}
+				if err := webRTCServer.TrackLocalStaticSample.WriteSample(mediaSample); err != nil {
+					pkg.Logger.Error("WriteSample", "err", err.Error())
+				}
+			} else if sample.Cid == rtsp.RTSP_CODEC_H265 {
+				//h264 := codecs.H264Packet{}
+				h265 := codecs.H265Packet{}
+
+				if data, err := h265.Unmarshal(sample.Sample); err != nil {
+					pkg.Logger.Error("h265 unmarshal failed", "err", err.Error())
+				} else {
+					pkg.Logger.Info("h265 unmarshal success...")
+					mediaSample := media.Sample{
+						Data: data,
+						//Timestamp: time.Now(),
+						Duration: time.Millisecond * 25,
+						//PacketTimestamp:    nil,
+						//PrevDroppedPackets: 0,
+						//Metadata:           nil,
+					}
+					if err := webRTCServer.TrackLocalStaticSample.WriteSample(mediaSample); err != nil {
+						pkg.Logger.Error("WriteSample", "err", err.Error())
+					}
+				}
+			} else {
+				pkg.Logger.Warn("Webrtc不支持当前编码", "CODEC", sample.Cid)
 			}
 		}
 	}

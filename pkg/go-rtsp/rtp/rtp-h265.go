@@ -166,7 +166,7 @@ func (unpacker *H265UnPacker) UnPack(pkt []byte) error {
 	case packType == 49:
 		unpacker.unpackFu(pkg)
 	default:
-		return errors.New("unsupport h264 rtp packet type")
+		return errors.New("unsupport h265 rtp packet type")
 	}
 	return nil
 }
