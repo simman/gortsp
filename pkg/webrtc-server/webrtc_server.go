@@ -7,12 +7,13 @@ import (
 )
 
 type WebRTCServer struct {
-	peer                    *webrtc.PeerConnection
-	sessionDesc             webrtc.SessionDescription
-	TrackLocalStaticRTP     *webrtc.TrackLocalStaticRTP
-	TrackLocalStaticSample  *webrtc.TrackLocalStaticSample
-	IsStarted               bool
-	onConnectionStateChange func(connectionState webrtc.ICEConnectionState)
+	peer                     *webrtc.PeerConnection
+	sessionDesc              webrtc.SessionDescription
+	TrackLocalStaticRTP      *webrtc.TrackLocalStaticRTP
+	TrackLocalStaticAudioRTP *webrtc.TrackLocalStaticRTP
+	TrackLocalStaticSample   *webrtc.TrackLocalStaticSample
+	IsStarted                bool
+	onConnectionStateChange  func(connectionState webrtc.ICEConnectionState)
 }
 
 func NewWebRTCServer() *WebRTCServer {
@@ -78,6 +79,32 @@ func (rtc *WebRTCServer) Start() {
 			}
 		}
 	}()
+
+	var haveAudioFile = true
+	if haveAudioFile {
+		// Create a audio track
+		audioTrack, audioTrackErr := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus}, "audio", "pion")
+		if audioTrackErr != nil {
+			panic(audioTrackErr)
+		}
+		rtc.TrackLocalStaticAudioRTP = audioTrack
+		rtpSender, audioTrackErr := rtc.peer.AddTrack(audioTrack)
+		if audioTrackErr != nil {
+			panic(audioTrackErr)
+		}
+
+		// Read incoming RTCP packets
+		// Before these packets are returned they are processed by interceptors. For things
+		// like NACK this needs to be called.
+		go func() {
+			rtcpBuf := make([]byte, 1500)
+			for {
+				if _, _, rtcpErr := rtpSender.Read(rtcpBuf); rtcpErr != nil {
+					return
+				}
+			}
+		}()
+	}
 
 	rtc.peer.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
 		pkg.Logger.Info("Connection State has changed", "state", connectionState.String())

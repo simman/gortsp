@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	rtp2 "github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
@@ -16,6 +17,7 @@ import (
 	"gortsp/pkg/go-rtsp"
 	go_rtsp_udp "gortsp/pkg/go-rtsp-udp"
 	webrtc_server "gortsp/pkg/webrtc-server"
+	uuuuuuuu "gortsp/udp_server"
 	"html/template"
 	"io"
 	"net/http"
@@ -76,7 +78,7 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 	config.Config.WebrtcCloseAndRm(sUUID)
 
 	// 创建并启动 WebRTC
-	webRTCServer := webrtc_server.NewWebRTCServer().WithSample().WithSessionDescription(bsd)
+	webRTCServer := webrtc_server.NewWebRTCServer().WithRTP().WithSessionDescription(bsd)
 	webRTCServer.OnConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
 		if connectionState == webrtc.ICEConnectionStateDisconnected || connectionState == webrtc.ICEConnectionStateFailed || connectionState == webrtc.ICEConnectionStateClosed {
 			// 如果存在RTSPServer, 则先关闭|删除
@@ -91,6 +93,16 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 		webRTCServer := config.Config.WebrtcSerGet(sUUID)
 		if webRTCServer != nil && webRTCServer.IsStarted && webRTCServer.TrackLocalStaticRTP != nil {
 			if _, err := webRTCServer.TrackLocalStaticRTP.Write(buf); err != nil {
+				panic(err)
+			}
+		}
+	}
+
+	var onRtpAudioBufCallback = func(buf []byte) {
+		webRTCServer := config.Config.WebrtcSerGet(sUUID)
+		if webRTCServer != nil && webRTCServer.IsStarted && webRTCServer.TrackLocalStaticAudioRTP != nil {
+			pkg.Logger.Info("======= 写入音频")
+			if _, err := webRTCServer.TrackLocalStaticAudioRTP.Write(buf); err != nil {
 				panic(err)
 			}
 		}
@@ -156,8 +168,26 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 		return
 	}
 
+	go func() {
+		_, _ = uuuuuuuu.CreateUdpSessionConn(18000, func(buf []byte) {
+			rtp := rtp2.Packet{}
+			_ = rtp.Unmarshal(buf)
+			onRtpBufCallback(buf)
+		})
+
+		select {}
+	}()
+
+	go func() {
+		_, _ = uuuuuuuu.CreateUdpSessionConn(18001, func(buf []byte) {
+			onRtpAudioBufCallback(buf)
+		})
+
+		select {}
+	}()
+
 	config.Config.RtspAdd(sUUID, rtspServer)
-	go rtspServer.Start()
+	//go rtspServer.Start()
 
 	c.JSON(200, webRTCServer.LocalDescription())
 }
