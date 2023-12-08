@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 )
 
 type RtpForwarderOnAudioBuf func(buf []byte)
@@ -49,11 +50,18 @@ func init() {
 			_ = os.MkdirAll(binPath, 0777)
 		}
 	}
-	ff_bin_path = path.Join(binPath, "goff")
+
+	binExt := ""
+	if runtime.GOOS == "windows" {
+		binExt = ".exe"
+	}
+
+	ff_bin_path = path.Join(binPath, fmt.Sprintf("goff%s", binExt))
 	fmt.Println(fmt.Sprintf("ffBin: %s", ff_bin_path))
 	if _, err := os.Stat(ff_bin_path); err != nil {
 		if os.IsNotExist(err) {
-			f, err := pkg.FFBin.Open("ffgo/ffmpeg/static/ffmpeg")
+
+			f, err := pkg.FFBin.Open(fmt.Sprintf("ffgo/ffmpeg/static/ffmpeg%s", binExt))
 			if err != nil {
 				panic(err)
 			}

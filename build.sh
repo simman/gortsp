@@ -2,7 +2,7 @@
 
 echo "编译 macOS"
 
-go build -ldflags="-s -w" && mv gortsp dist
+GOOS=darwin go build -ldflags="-s -w" && mv gortsp dist
 
 echo "编译 Windows"
 
