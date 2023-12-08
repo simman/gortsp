@@ -55,6 +55,9 @@ func RunUdpServer() {
 	// ffmpeg -i rtsp://192.168.5.222:8554/live/test110/test110 -vcodec copy -an -f rtp rtp://127.0.0.1:18000 -vn -c:a libopus -f rtp rtp://127.0.0.1:18001
 
 	// ffmpeg -i rtsp://192.168.5.222:8554/live/test110/test110 -vcodec copy -an -f rtp rtp://127.0.0.1:18000 -vn -c:a libopus -page_duration 20000 -f rtp rtp://127.0.0.1:18001
+
+	// ffmpeg -i rtsp://192.168.5.222:8554/live/test110/test110 -c:v libx264 -an -f rtp rtp://127.0.0.1:18000 -vn -c:a libopus -b:a 32k -page_duration 20000 -f rtp rtp://127.0.0.1:18001
+
 	go func() {
 		_, _ = CreateUdpSessionConn(18000, func(buf []byte) {
 			// buf[:r]

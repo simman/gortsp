@@ -24,6 +24,7 @@ func NewWebRTCServer() *WebRTCServer {
 
 func (rtc *WebRTCServer) WithRTP() *WebRTCServer {
 	rtc.TrackLocalStaticRTP, _ = webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264}, "video", "pion")
+	rtc.TrackLocalStaticAudioRTP, _ = webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus}, "audio", "pion")
 	return rtc
 }
 
@@ -64,6 +65,18 @@ func (rtc *WebRTCServer) Start() {
 	}
 
 	rtpSender, err := rtc.peer.AddTrack(track)
+	if rtc.TrackLocalStaticAudioRTP != nil {
+		audioRtpSender, _ := rtc.peer.AddTrack(rtc.TrackLocalStaticAudioRTP)
+		go func() {
+			rtcpBuf := make([]byte, 1500)
+			for {
+				if _, _, rtcpErr := audioRtpSender.Read(rtcpBuf); rtcpErr != nil {
+					return
+				}
+			}
+		}()
+	}
+
 	if err != nil {
 		panic(err)
 	}
@@ -79,32 +92,6 @@ func (rtc *WebRTCServer) Start() {
 			}
 		}
 	}()
-
-	var haveAudioFile = true
-	if haveAudioFile {
-		// Create a audio track
-		audioTrack, audioTrackErr := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus}, "audio", "pion")
-		if audioTrackErr != nil {
-			panic(audioTrackErr)
-		}
-		rtc.TrackLocalStaticAudioRTP = audioTrack
-		rtpSender, audioTrackErr := rtc.peer.AddTrack(audioTrack)
-		if audioTrackErr != nil {
-			panic(audioTrackErr)
-		}
-
-		// Read incoming RTCP packets
-		// Before these packets are returned they are processed by interceptors. For things
-		// like NACK this needs to be called.
-		go func() {
-			rtcpBuf := make([]byte, 1500)
-			for {
-				if _, _, rtcpErr := rtpSender.Read(rtcpBuf); rtcpErr != nil {
-					return
-				}
-			}
-		}()
-	}
 
 	rtc.peer.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
 		pkg.Logger.Info("Connection State has changed", "state", connectionState.String())

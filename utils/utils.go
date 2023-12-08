@@ -69,3 +69,23 @@ func GetFreePort(network string) (port int, err error) {
 
 	return
 }
+
+func ParseBool(val interface{}, defVal bool) bool {
+	if val == nil {
+		return defVal
+	}
+	switch val.(type) {
+	case nil:
+		return defVal
+	case bool:
+		return val.(bool)
+	case string:
+		boolValue, err := strconv.ParseBool(val.(string))
+		if err != nil {
+			return defVal
+		}
+		return boolValue
+	default:
+		return defVal
+	}
+}

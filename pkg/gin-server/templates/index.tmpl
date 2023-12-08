@@ -16,9 +16,23 @@
     <div class="col mt-5">
         <div class="row">
             <div class="input-group mb-3">
-            <span class="input-group-text">rtsp地址</span>
-            <input type="text" class="form-control" id="rtspAddress" />
-            <button type="button" class="btn btn-success" onclick="startPlay()">播放</button>
+                <span class="input-group-text">rtsp地址</span>
+                <input type="text" class="form-control" id="rtspAddress" />
+                <button type="button" class="btn btn-success" onclick="startPlay()">播放</button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <input class="form-check-input" type="checkbox" value="" id="audioTranscoding" checked>
+                <label class="form-check-label" for="audioTranscoding">
+                    音频-转码 (aac -> opus)
+                </label>
+            </div>
+            <div class="col">
+                <input class="form-check-input" type="checkbox" value="" id="videoTranscoding">
+                <label class="form-check-label" for="videoTranscoding">
+                    视频-转码 (HEVC -> h264)
+                </label>
             </div>
         </div>
         <div class="border" id="video" style="min-height: 100px">
@@ -37,6 +51,9 @@
     let localSessionDescription = undefined;
     let pc = new RTCPeerConnection();
     pc.ontrack = function (event) {
+        if (event.track.kind === 'audio') {
+            return
+        }
         var el = document.createElement(event.track.kind)
         el.srcObject = event.streams[0]
         el.autoplay = true
@@ -51,6 +68,7 @@
         }
     }
     pc.addTransceiver('video', {'direction': 'recvonly'})
+    pc.addTransceiver('audio', { direction: 'sendrecv'})
     pc.createOffer().then(d => pc.setLocalDescription(d)).catch(log)
 
 
@@ -61,6 +79,9 @@
             return;
         }
 
+        const audioTranscoding = document.getElementById('audioTranscoding').checked
+        const videoTranscoding = document.getElementById('videoTranscoding').checked
+
         const videoNode = document.getElementById('video')
         while (videoNode.firstChild) {
             videoNode.removeChild(videoNode.lastChild);
@@ -68,7 +89,12 @@
 
         fetch("/play/" + suuid, {
             method: 'POST',
-            body: JSON.stringify({bsd: localSessionDescription, rtsp: rtspAddress})
+            body: JSON.stringify({
+                bsd: localSessionDescription,
+                rtsp: rtspAddress,
+                ac: audioTranscoding,
+                vc: videoTranscoding,
+            })
         }).then(res => res.json()).then(result => {
             pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(result))))
         })

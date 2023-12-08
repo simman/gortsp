@@ -2,11 +2,9 @@ package gin_server
 
 import (
 	"bytes"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
-	rtp2 "github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
@@ -16,8 +14,9 @@ import (
 	"gortsp/pkg/config"
 	"gortsp/pkg/go-rtsp"
 	go_rtsp_udp "gortsp/pkg/go-rtsp-udp"
+	rtp_forwarder "gortsp/pkg/rtp-forwarder"
 	webrtc_server "gortsp/pkg/webrtc-server"
-	uuuuuuuu "gortsp/udp_server"
+	"gortsp/utils"
 	"html/template"
 	"io"
 	"net/http"
@@ -29,15 +28,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//go:embed templates/*.tmpl
-var TemplateFs embed.FS
-
 func RunHttpServer() {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.Default()
 
-	templ := template.Must(template.New("").ParseFS(TemplateFs, "templates/*.tmpl"))
+	templ := template.Must(template.New("").ParseFS(pkg.TemplateFs, "gin-server/templates/*.tmpl"))
 	router.SetHTMLTemplate(templ)
 
 	router.Use(sloggin.New(pkg.Logger))
@@ -74,6 +70,14 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 	bsd := fmt.Sprintf("%s", jsonMap["bsd"])
 	rtspAddress := fmt.Sprintf("%s", jsonMap["rtsp"])
 
+	fmt.Println(jsonMap)
+
+	audioTranscoding := utils.ParseBool(jsonMap["ac"], true)
+	videoTranscoding := utils.ParseBool(jsonMap["vc"], false)
+
+	fmt.Println(audioTranscoding)
+	fmt.Println(videoTranscoding)
+
 	// 如果存在WebRTC, 则先关闭
 	config.Config.WebrtcCloseAndRm(sUUID)
 
@@ -83,6 +87,7 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 		if connectionState == webrtc.ICEConnectionStateDisconnected || connectionState == webrtc.ICEConnectionStateFailed || connectionState == webrtc.ICEConnectionStateClosed {
 			// 如果存在RTSPServer, 则先关闭|删除
 			config.Config.RtspCloseAndRm(sUUID)
+			config.Config.RtpForwarderCloseAndRm(sUUID)
 		}
 	})
 	webRTCServer.Start()
@@ -101,7 +106,6 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 	var onRtpAudioBufCallback = func(buf []byte) {
 		webRTCServer := config.Config.WebrtcSerGet(sUUID)
 		if webRTCServer != nil && webRTCServer.IsStarted && webRTCServer.TrackLocalStaticAudioRTP != nil {
-			pkg.Logger.Info("======= 写入音频")
 			if _, err := webRTCServer.TrackLocalStaticAudioRTP.Write(buf); err != nil {
 				panic(err)
 			}
@@ -158,36 +162,39 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 		config.Config.WebrtcCloseAndRm(sUUID)
 	}
 
-	// 如果存在RTSPServer, 则先关闭
-	config.Config.RtspCloseAndRm(sUUID)
+	// 如果存在转发服务器, 则先关闭
+	config.Config.RtpForwarderCloseAndRm(sUUID)
 
-	// 创建并启动 RTSPServer
-	rtspServer, err := go_rtsp_udp.NewRtspUdpServer(rtspAddress, onRtpBufCallback, onSampleCallback, onCloseCallback)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err.Error())
-		return
+	// 创建转发服务器
+	forwarder := rtp_forwarder.NewRtpForwarder(rtspAddress, onRtpAudioBufCallback, onRtpBufCallback, onCloseCallback)
+
+	config.Config.RtpForwarderAdd(sUUID, forwarder)
+
+	go func() {
+		err := forwarder.Start(rtp_forwarder.RtpForwarderOptions{
+			AudioTranscoding: audioTranscoding,
+			VideoTranscoding: videoTranscoding,
+		})
+		if err != nil {
+			forwarder.Stop()
+			onCloseCallback()
+		}
+	}()
+
+	if false {
+		// 如果存在RTSPServer, 则先关闭
+		config.Config.RtspCloseAndRm(sUUID)
+
+		// 创建并启动 RTSPServer
+		rtspServer, err := go_rtsp_udp.NewRtspUdpServer(rtspAddress, onRtpBufCallback, onSampleCallback, onCloseCallback)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		config.Config.RtspAdd(sUUID, rtspServer)
+		go rtspServer.Start()
 	}
-
-	go func() {
-		_, _ = uuuuuuuu.CreateUdpSessionConn(18000, func(buf []byte) {
-			rtp := rtp2.Packet{}
-			_ = rtp.Unmarshal(buf)
-			onRtpBufCallback(buf)
-		})
-
-		select {}
-	}()
-
-	go func() {
-		_, _ = uuuuuuuu.CreateUdpSessionConn(18001, func(buf []byte) {
-			onRtpAudioBufCallback(buf)
-		})
-
-		select {}
-	}()
-
-	config.Config.RtspAdd(sUUID, rtspServer)
-	//go rtspServer.Start()
 
 	c.JSON(200, webRTCServer.LocalDescription())
 }

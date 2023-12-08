@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "avcodec.h": "c",
+        "avformat.h": "c",
+        "avutil.h": "c"
+    }
+}

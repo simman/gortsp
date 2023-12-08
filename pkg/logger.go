@@ -1,9 +1,11 @@
 package pkg
 
 import (
+	"fmt"
 	"github.com/lmittmann/tint"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -25,4 +27,18 @@ func init() {
 		TimeFormat: time.RFC3339,
 		NoColor:    LogToFile,
 	}))
+}
+
+type LogWriter struct {
+}
+
+func NewLogWriter() *LogWriter {
+	lw := &LogWriter{}
+	return lw
+}
+
+func (lw LogWriter) Write(p []byte) (n int, err error) {
+	message := strings.TrimSuffix(fmt.Sprintf(string(p)), "\r")
+	Logger.Debug("FF-GO", "message", message)
+	return len(p), nil
 }
