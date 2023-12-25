@@ -29,13 +29,26 @@
                 </label>
             </div>
             <div class="col">
+                <input class="form-check-input" type="checkbox" value="" id="enableAudio" checked>
+                <label class="form-check-label" for="enableAudio">
+                    开始音频
+                </label>
+            </div>
+            <div class="col">
                 <input class="form-check-input" type="checkbox" value="" id="videoTranscoding">
                 <label class="form-check-label" for="videoTranscoding">
                     视频-转码 (HEVC -> h264)
                 </label>
             </div>
+            <div class="col">
+                <input class="form-check-input" type="checkbox" value="" id="enableVideo" checked>
+                <label class="form-check-label" for="enableVideo">
+                    开始视频
+                </label>
+            </div>
         </div>
-        <div class="border" id="video" style="min-height: 100px">
+        <h3 id="timer"> </h3>
+        <div class="border" id="video" style="margin-top: 20px; min-height: 100px">
             <p>Video</p>
         </div>
         <div id="logs" class="border mt-3">
@@ -68,10 +81,10 @@
         }
     }
     pc.addTransceiver('video', {'direction': 'recvonly'})
-    pc.addTransceiver('audio', { direction: 'sendrecv'})
+    pc.addTransceiver('audio', { 'direction': 'recvonly'})
     pc.createOffer().then(d => pc.setLocalDescription(d)).catch(log)
 
-
+    var timer = null;
     window.startPlay = () => {
         const rtspAddress = document.getElementById('rtspAddress').value
         if (rtspAddress === '') {
@@ -79,8 +92,17 @@
             return;
         }
 
+        var i = 1
+        timer = setInterval(() => {
+            document.getElementById('timer').textContent = i + 's'
+            i ++;
+        }, 1000)
+
         const audioTranscoding = document.getElementById('audioTranscoding').checked
         const videoTranscoding = document.getElementById('videoTranscoding').checked
+
+        const enableAudio = document.getElementById('enableAudio').checked
+        const enableVideo = document.getElementById('enableVideo').checked
 
         const videoNode = document.getElementById('video')
         while (videoNode.firstChild) {
@@ -94,6 +116,8 @@
                 rtsp: rtspAddress,
                 ac: audioTranscoding,
                 vc: videoTranscoding,
+                ea: enableAudio,
+                ev: enableVideo
             })
         }).then(res => res.json()).then(result => {
             pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(result))))

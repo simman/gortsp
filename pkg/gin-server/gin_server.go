@@ -70,13 +70,13 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 	bsd := fmt.Sprintf("%s", jsonMap["bsd"])
 	rtspAddress := fmt.Sprintf("%s", jsonMap["rtsp"])
 
-	fmt.Println(jsonMap)
+	pkg.Logger.Info("params", "json-map", jsonMap)
+
+	enableAudio := utils.ParseBool(jsonMap["ea"], true)
+	enableVideo := utils.ParseBool(jsonMap["ev"], true)
 
 	audioTranscoding := utils.ParseBool(jsonMap["ac"], true)
 	videoTranscoding := utils.ParseBool(jsonMap["vc"], false)
-
-	fmt.Println(audioTranscoding)
-	fmt.Println(videoTranscoding)
 
 	// 如果存在WebRTC, 则先关闭
 	config.Config.WebrtcCloseAndRm(sUUID)
@@ -97,6 +97,7 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 	var onRtpBufCallback = func(buf []byte) {
 		webRTCServer := config.Config.WebrtcSerGet(sUUID)
 		if webRTCServer != nil && webRTCServer.IsStarted && webRTCServer.TrackLocalStaticRTP != nil {
+			//pkg.Logger.Info("====== write rtp to webrtc")
 			if _, err := webRTCServer.TrackLocalStaticRTP.Write(buf); err != nil {
 				panic(err)
 			}
@@ -174,6 +175,8 @@ func SwitchLocalDescriptionAndPlayHandle(c *gin.Context) {
 		err := forwarder.Start(rtp_forwarder.RtpForwarderOptions{
 			AudioTranscoding: audioTranscoding,
 			VideoTranscoding: videoTranscoding,
+			EnableAudio:      enableAudio,
+			EnableVideo:      enableVideo,
 		})
 		if err != nil {
 			forwarder.Stop()

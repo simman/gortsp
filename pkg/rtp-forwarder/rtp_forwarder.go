@@ -31,6 +31,8 @@ type RtpForwarder struct {
 }
 
 type RtpForwarderOptions struct {
+	EnableVideo      bool // 是否开启视频
+	EnableAudio      bool // 是否开启音频
 	VideoTranscoding bool // 是否需要转码视频
 	AudioTranscoding bool // 是否需要转码音频
 }
@@ -57,7 +59,7 @@ func init() {
 	}
 
 	ff_bin_path = path.Join(binPath, fmt.Sprintf("goff%s", binExt))
-	fmt.Println(fmt.Sprintf("ffBin: %s", ff_bin_path))
+	pkg.Logger.Info("ff-bin", "location", ff_bin_path)
 	if _, err := os.Stat(ff_bin_path); err != nil {
 		if os.IsNotExist(err) {
 
@@ -99,9 +101,14 @@ func (f *RtpForwarder) Start(opts RtpForwarderOptions) error {
 	}
 
 	// 创建udp监听
-	pkg.Logger.Info("RtpForwarder", "创建udp监听")
-	f.audioUdpConn, err = f._createUdpSessionConn(aPort, f.onAudioBuf)
-	f.videoUdpConn, err = f._createUdpSessionConn(vPort, f.onVideoBuf)
+	pkg.Logger.Info("RtpForwarder", "创建udp监听", "audio-port", aPort, "video-port", vPort)
+	if opts.EnableAudio {
+		f.audioUdpConn, err = f._createUdpSessionConn(aPort, f.onAudioBuf)
+	}
+
+	if opts.EnableVideo {
+		f.videoUdpConn, err = f._createUdpSessionConn(vPort, f.onVideoBuf)
+	}
 
 	if err != nil {
 		pkg.Logger.Error("UDP", "创建udp服务失败", "err", err.Error())
@@ -118,34 +125,74 @@ func (f *RtpForwarder) Start(opts RtpForwarderOptions) error {
 	ff_cmd_args = append(ff_cmd_args, "zerolatency") // 零缓冲
 	ff_cmd_args = append(ff_cmd_args, "-preset")     // 极速转码
 	ff_cmd_args = append(ff_cmd_args, "ultrafast")   // 极速转码
-	if opts.VideoTranscoding {                       // 如果需要转码, 则标准输出为 h264
-		ff_cmd_args = append(ff_cmd_args, "-c:v")
-		ff_cmd_args = append(ff_cmd_args, "libx264")
-	} else {
-		ff_cmd_args = append(ff_cmd_args, "-c:v")
-		ff_cmd_args = append(ff_cmd_args, "copy")
-	}
-	ff_cmd_args = append(ff_cmd_args, "-an") // 忽略音频
-	ff_cmd_args = append(ff_cmd_args, "-f")
-	ff_cmd_args = append(ff_cmd_args, "rtp")
-	ff_cmd_args = append(ff_cmd_args, fmt.Sprintf("rtp://127.0.0.1:%d", vPort)) // 转发视频
 
-	if opts.AudioTranscoding { // 如果需要转码, 则标准输出为 opus
-		ff_cmd_args = append(ff_cmd_args, "-c:a")
-		ff_cmd_args = append(ff_cmd_args, "libopus")
-		ff_cmd_args = append(ff_cmd_args, "-b:a") // 音频码率
-		ff_cmd_args = append(ff_cmd_args, " 32k")
-	} else {
-		ff_cmd_args = append(ff_cmd_args, "-c:a")
-		ff_cmd_args = append(ff_cmd_args, "copy")
+	//ff_cmd_args = append(ff_cmd_args, "-threads")
+	//ff_cmd_args = append(ff_cmd_args, "5")
+
+	//ff_cmd_args = append(ff_cmd_args, "-fflags")
+	//ff_cmd_args = append(ff_cmd_args, "nobuffer")
+
+	// 通过添加 -fflags +genpts 选项到您的FFmpeg命令中，可以强制生成时间戳。这有助于确保首帧能够及时显示。
+	//ff_cmd_args = append(ff_cmd_args, "-fflags")
+	//ff_cmd_args = append(ff_cmd_args, "+igndts")
+
+	//ff_cmd_args = append(ff_cmd_args, "-vsync")
+	//ff_cmd_args = append(ff_cmd_args, " 0")
+
+	// 添加 -analyzeduration 和 -probesize 选项可以增加解码器的缓冲区大小，以便更快地获取首帧
+	//ff_cmd_args = append(ff_cmd_args, "-analyzeduration")
+	//ff_cmd_args = append(ff_cmd_args, "10M")
+	//ff_cmd_args = append(ff_cmd_args, "-probesize")
+	//ff_cmd_args = append(ff_cmd_args, "10M")
+
+	if opts.EnableVideo {
+		if opts.VideoTranscoding { // 如果需要转码, 则标准输出为 h264
+			ff_cmd_args = append(ff_cmd_args, "-c:v")
+			ff_cmd_args = append(ff_cmd_args, "libx264")
+		} else {
+			ff_cmd_args = append(ff_cmd_args, "-c:v")
+			ff_cmd_args = append(ff_cmd_args, "copy")
+		}
+		ff_cmd_args = append(ff_cmd_args, "-an") // 忽略音频
+
+		//ff_cmd_args = append(ff_cmd_args, "-b:v")
+		//ff_cmd_args = append(ff_cmd_args, "1M")
+
+		ff_cmd_args = append(ff_cmd_args, "-f")
+		ff_cmd_args = append(ff_cmd_args, "rtp")
+		//ff_cmd_args = append(ff_cmd_args, "-max_delay")
+		//ff_cmd_args = append(ff_cmd_args, "0")
+		//ff_cmd_args = append(ff_cmd_args, "-application")
+		//ff_cmd_args = append(ff_cmd_args, "lowdelay")
+		ff_cmd_args = append(ff_cmd_args, fmt.Sprintf("rtp://127.0.0.1:%d", vPort)) // 转发视频
 	}
-	ff_cmd_args = append(ff_cmd_args, "-vn")                                    // 忽略视频
-	ff_cmd_args = append(ff_cmd_args, "-f")                                     // 忽略视频
-	ff_cmd_args = append(ff_cmd_args, "rtp")                                    // 忽略视频
-	ff_cmd_args = append(ff_cmd_args, fmt.Sprintf("rtp://127.0.0.1:%d", aPort)) // 转发音频
+
+	if opts.EnableAudio {
+		if opts.AudioTranscoding { // 如果需要转码, 则标准输出为 opus
+			ff_cmd_args = append(ff_cmd_args, "-c:a")
+			ff_cmd_args = append(ff_cmd_args, "libopus")
+			//ff_cmd_args = append(ff_cmd_args, "-reorder_queue_size")
+			//ff_cmd_args = append(ff_cmd_args, "1024")
+			ff_cmd_args = append(ff_cmd_args, "-b:a") // 音频码率
+			ff_cmd_args = append(ff_cmd_args, " 128k")
+		} else {
+			ff_cmd_args = append(ff_cmd_args, "-c:a")
+			ff_cmd_args = append(ff_cmd_args, "copy")
+		}
+		ff_cmd_args = append(ff_cmd_args, "-vn") // 忽略视频
+		ff_cmd_args = append(ff_cmd_args, "-f")  // 忽略视频
+		ff_cmd_args = append(ff_cmd_args, "rtp") // 忽略视频
+		//ff_cmd_args = append(ff_cmd_args, "-max_delay")
+		//ff_cmd_args = append(ff_cmd_args, "0")
+		//ff_cmd_args = append(ff_cmd_args, "-application")
+		//ff_cmd_args = append(ff_cmd_args, "lowdelay")
+		ff_cmd_args = append(ff_cmd_args, fmt.Sprintf("rtp://127.0.0.1:%d", aPort)) // 转发音频
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	ff := exec.CommandContext(ctx, ff_bin_path, ff_cmd_args...)
+
+	pkg.Logger.Info("ffmpeg", "cmd", ff.String())
 
 	go func() {
 		select {
